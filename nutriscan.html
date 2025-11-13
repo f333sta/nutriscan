@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriLens AI v4 - com IA Real</title>
+    <style>
+        /* --- Estilos Gerais (Mantidos) --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 420px;
+            height: 90vh;
+            max-height: 850px;
+            background-color: #1c1c1e;
+            border-radius: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .screen {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+            height: 100%;
+        }
+        .screen.active { display: flex; }
+        h1 { font-size: 2em; font-weight: 700; color: #fff; margin-bottom: 10px; }
+        p { font-size: 1em; color: #aaa; line-height: 1.5; }
+        /* --- Tela da Câmera --- */
+        #camera-screen { background-color: #000; position: relative; }
+        #video { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        .camera-overlay {
+            position: relative; z-index: 2; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+            padding: 40px 20px; box-sizing: border-box;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.6) 100%);
+        }
+        .camera-frame { width: 250px; height: 250px; border: 3px dashed rgba(255, 255, 255, 0.4); border-radius: 20px; }
+        .button-group { display: flex; flex-direction: column; gap: 15px; z-index: 3; }
+        .btn-primary {
+            background-color: #34C759; color: white; border: none;
+            padding: 18px 50px; font-size: 1.2em; font-weight: 600; border-radius: 50px; cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .btn-primary:hover { transform: scale(1.05); background-color: #2fb84f; }
+        .btn-primary:active { transform: scale(0.95); }
+        .btn-secondary {
+            background-color: transparent; color: white; border: 2px solid rgba(255, 255, 255, 0.7);
+            padding: 15px 40px; font-size: 1.1em; font-weight: 600; border-radius: 50px; cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .btn-secondary:hover { background-color: rgba(255, 255, 255, 0.1); border-color: white; }
+        /* --- Tela de Carregamento e Erro --- */
+        #loading-screen, #error-screen { background-color: #1c1c1e; }
+        .spinner {
+            width: 60px; height: 60px; border: 6px solid #333; border-top: 6px solid #34C759;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-message { color: #FF3B30; font-weight: 600; }
+        /* --- Tela de Resultados --- */
+        #result-screen { overflow-y: auto; background-color: #1c1c1e; }
+        .result-image { width: 100%; height: 250px; background-color: #333; border-radius: 0; margin-bottom: 20px; object-fit: cover; }
+        .calories-display {
+            background-color: #34C759; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; width: 100%;
+        }
+        .calories-display h2 { font-size: 1.2em; font-weight: 400; margin: 0; }
+        .calories-display .number { font-size: 3em; font-weight: 700; margin: 5px 0; }
+        .macro-chart { display: flex; justify-content: space-around; margin-bottom: 20px; width: 100%; }
+        .macro-item { text-align: center; }
+        .macro-item .circle {
+            width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 8px;
+            display: flex; justify-content: center; align-items: center; font-weight: bold; color: white;
+        }
+        .macro-item.proteins .circle { background-color: #007AFF; }
+        .macro-item.carbs .circle { background-color: #FF9500; }
+        .macro-item.fats .circle { background-color: #FF3B30; }
+        .food-list {
+            width: 100%; text-align: left; background-color: #2c2c2e; padding: 15px; border-radius: 15px;
+        }
+        .food-list h3 { margin-top: 0; border-bottom: 1px solid #444; padding-bottom: 10px; color: #fff; }
+        .food-item {
+            display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #3a3a3c;
+        }
+        .food-item:last-child { border-bottom: none; }
+        .food-name { font-weight: 500; color: #eee; }
+        .food-calories { color: #34C759; font-weight: 600; }
+        .btn-reset {
+            background-color: #2c2c2e; color: #fff; border: none;
+            padding: 15px 30px; font-size: 1.1em; font-weight: 600; border-radius: 50px; cursor: pointer;
+            margin-top: 20px; transition: background-color 0.2s;
+        }
+        .btn-reset:hover { background-color: #3a3a3c; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- TELA 1: CÂMERA -->
+        <div id="camera-screen" class="screen active">
+            <video id="video" autoplay></video>
+            <div class="camera-overlay">
+                <div>
+                    <h1>NutriLens AI</h1>
+                    <p>Escolha como analisar sua refeição</p>
+                </div>
+                <div class="camera-frame"></div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="capturePhoto()">Tirar Foto</button>
+                    <button class="btn-secondary" onclick="document.getElementById('file-input').click()">Galeria</button>
+                    <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+                </div>
+            </div>
+        </div>
+
+        <!-- TELA 2: CARREGANDO -->
+        <div id="loading-screen" class="screen">
+            <div class="spinner"></div>
+            <h1>Analisando...</h1>
+            <p>Nossa IA está identificando os alimentos.</p>
+        </div>
+        
+        <!-- TELA 2.5: ERRO -->
+        <div id="error-screen" class="screen">
+            <h1>Oops!</h1>
+            <p class="error-message" id="error-text">Ocorreu um erro na análise.</p>
+            <button class="btn-primary" onclick="resetApp()">Tentar Novamente</button>
+        </div>
+
+        <!-- TELA 3: RESULTADOS -->
+        <div id="result-screen" class="screen">
+            <img id="captured-image" class="result-image" src="" alt="Foto da refeição">
+            
+            <div class="calories-display">
+                <h2>Calorias Estimadas</h2>
+                <div id="total-calories" class="number">0 kcal</div>
+            </div>
+
+            <div class="macro-chart">
+                <div class="macro-item proteins">
+                    <div id="protein-percent" class="circle">0%</div>
+                    <p>Proteínas</p>
+                </div>
+                <div class="macro-item carbs">
+                    <div id="carb-percent" class="circle">0%</div>
+                    <p>Carboidratos</p>
+                </div>
+                <div class="macro-item fats">
+                    <div id="fat-percent" class="circle">0%</div>
+                    <p>Gorduras</p>
+                </div>
+            </div>
+
+            <div class="food-list">
+                <h3>Itens Identificados</h3>
+                <div id="food-items-container">
+                    <!-- Itens serão inseridos aqui pelo JS -->
+                </div>
+            </div>
+            
+            <button class="btn-reset" onclick="resetApp()">Analisar Outra Refeição</button>
+        </div>
+    </div>
+
+    <script>
+        // --- BANCO DE DADOS DE ALIMENTOS ---
+        const foodDatabase = [
+            { name: 'Filé de Frango Grelhado', calories: 250, weight: '150g', type: 'protein' },
+            { name: 'Bife de Contra Filé', calories: 350, weight: '150g', type: 'protein' },
+            { name: 'Salmão Assado', calories: 300, weight: '150g', type: 'protein' },
+            { name: 'Pizza', calories: 285, weight: '150g', type: 'carb' },
+            { name: 'Macarrão', calories: 250, weight: '150g', type: 'carb' },
+            { name: 'Arroz', calories: 200, weight: '150g', type: 'carb' },
+            { name: 'Batata Frita', calories: 320, weight: '150g', type: 'carb' },
+            { name: 'Salada', calories: 30, weight: '150g', type: 'vegetable' },
+            { name: 'Brócolis', calories: 35, weight: '100g', type: 'vegetable' },
+            { name: 'Ovos', calories: 155, weight: '100g', type: 'protein' },
+            { name: 'Pão', calories: 140, weight: '50g', type: 'carb' },
+            { name: 'Queijo', calories: 110, weight: '30g', type: 'fat' },
+            { name: 'Tomate', calories: 20, weight: '100g', type: 'vegetable' },
+            { name: 'Abacate', calories: 160, weight: '100g', type: 'fat' },
+        ];
+
+        // --- MAPEAMENTO DA RESPOSTA DA API PARA NOSSO BANCO ---
+        // A API retorna nomes em inglês e genéricos. Mapeamos para nossos itens.
+        const apiFoodMapping = {
+            'pizza': 'Pizza',
+            'pasta': 'Macarrão',
+            'rice': 'Arroz',
+            'french-fries': 'Batata Frita',
+            'salad': 'Salada',
+            'broccoli': 'Brócolis',
+            'cheese': 'Queijo',
+            'tomato': 'Tomate',
+            'avocado': 'Abacate',
+            'bread': 'Pão',
+            'egg': 'Ovos',
+            'steak': 'Bife de Contra Filé',
+            'chicken': 'Filé de Frango Grelhado',
+            'salmon': 'Salmão Assado',
+        };
+
+        let videoStream;
+
+        window.onload = async () => await startCamera();
+
+        async function startCamera() {
+            try {
+                const video = document.getElementById('video');
+                if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = videoStream;
+            } catch (err) { console.error("Erro ao acessar a câmera:", err); }
+        }
+
+        // --- LÓGICA DE CAPTURA E IMPORTAÇÃO ---
+        function capturePhoto() {
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d'); ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageDataUrl = canvas.toDataURL('image/jpeg');
+            startAnalysis(imageDataUrl);
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => startAnalysis(e.target.result);
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // --- FUNÇÃO UNIFICADA DE ANÁLISE COM IA REAL ---
+        async function startAnalysis(imageDataUrl) {
+            if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+            document.getElementById('captured-image').src = imageDataUrl;
+            showScreen('loading-screen');
+
+            const base64Image = imageDataUrl.split(',')[1];
+
+            const raw = JSON.stringify({
+                "user_app_id": {"user_id": "clarifai", "app_id": "main"},
+                "inputs": [{ "data": { "image": { "base64": base64Image } } }]
+            });
+
+            const requestOptions = {
+                method: 'POST',
+                headers: {
+                    "Accept": "application/json",
+                    "Authorization": "Key 72027cef60264ad8b49624d0cd6f8ae6" // Chave de API (ATENÇÃO: apenas para demo)
+                },
+                body: raw
+            };
+
+            // Usando um proxy para contornar o CORS do navegador. NÃO USAR EM PRODUÇÃO.
+            const proxyUrl = "https://cors-anywhere.herokuapp.com/";
+            const apiUrl = "https://api.clarifai.com/v2/models/food-item-recognition/versions/1d5fd481e0cf4826aa72ec3ff049e044/outputs";
+
+            try {
+                const response = await fetch(proxyUrl + apiUrl, requestOptions);
+                if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
+                const result = await response.json();
+                processApiResults(result);
+            } catch (error) {
+                console.error("Falha na análise:", error);
+                showError("Não foi possível conectar à IA. Verifique sua conexão ou tente novamente.");
+            }
+        }
+        
+        function processApiResults(result) {
+            const concepts = result.outputs[0]?.data?.concepts;
+            if (!concepts || concepts.length === 0) {
+                showError("Nenhum alimento foi identificado na imagem. Tente uma foto mais clara.");
+                return;
+            }
+
+            const identifiedFoods = [];
+            concepts.forEach(concept => {
+                // Filtra por confiança e mapeia para nosso DB
+                if (concept.value > 0.85 && apiFoodMapping[concept.name]) {
+                    const foodName = apiFoodMapping[concept.name];
+                    const foodData = foodDatabase.find(f => f.name === foodName);
+                    if (foodData && !identifiedFoods.find(f => f.name === foodName)) {
+                        identifiedFoods.push(foodData);
+                    }
+                }
+            });
+
+            if (identifiedFoods.length === 0) {
+                showError("IA não conseguiu identificar alimentos com confiança. Tente outra foto.");
+                return;
+            }
+
+            updateUIWithResults(identifiedFoods);
+            showScreen('result-screen');
+        }
+
+        function updateUIWithResults(foods) {
+            let totalCalories = 0;
+            let macros = { protein: 0, carb: 0, fat: 0 };
+            
+            const foodItemsHtml = foods.map(food => {
+                totalCalories += food.calories;
+                if (food.type === 'protein') macros.protein += food.calories;
+                if (food.type === 'carb') macros.carb += food.calories;
+                if (food.type === 'fat') macros.fat += food.calories;
+                if (food.type === 'vegetable') macros.carb += food.calories;
+                return `
+                    <div class="food-item">
+                        <span class="food-name">${food.name} (~${food.weight})</span>
+                        <span class="food-calories">${food.calories} kcal</span>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('total-calories').innerText = `${totalCalories} kcal`;
+            document.getElementById('food-items-container').innerHTML = foodItemsHtml;
+
+            const totalMacroCalories = macros.protein + macros.carb + macros.fat;
+            document.getElementById('protein-percent').innerText = totalMacroCalories > 0 ? `${Math.round((macros.protein / totalMacroCalories) * 100)}%` : '0%';
+            document.getElementById('carb-percent').innerText = totalMacroCalories > 0 ? `${Math.round((macros.carb / totalMacroCalories) * 100)}%` : '0%';
+            document.getElementById('fat-percent').innerText = totalMacroCalories > 0 ? `${Math.round((macros.fat / totalMacroCalories) * 100)}%` : '0%';
+        }
+        
+        // --- Funções de Navegação de Telas ---
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+        
+        function showError(message) {
+            document.getElementById('error-text').innerText = message;
+            showScreen('error-screen');
+        }
+
+        function resetApp() {
+            document.getElementById('captured-image').src = '';
+            document.getElementById('file-input').value = '';
+            startCamera();
+            showScreen('camera-screen');
+        }
+    </script>
+
+</body>
+</html>
